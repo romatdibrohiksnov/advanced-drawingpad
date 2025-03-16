@@ -1,151 +1,296 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>图片生成器</title>
+  <title>Collaborative Drawing Pad with AI</title>
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 0;
-      overflow: hidden; /* Prevent scrollbars when background image is used */
-    }
-    #background-image {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover; /* Cover the entire background */
-      z-index: -1; /* Place behind content */
-    }
-    .container {
+    body { margin: 0; }
+    #toolbar {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-      background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background for content */
-      border-radius: 10px;
-      margin: 20px auto;
-      max-width: 800px;
-    }
-    input[type="text"] {
+      justify-content: flex-start;
       padding: 10px;
-      margin-bottom: 10px;
-      width: 100%;
-      box-sizing: border-box;
+      background-color: #f0f0f0;
     }
-    button {
-      padding: 10px 20px;
-      cursor: pointer;
-    }
-    #image-container {
-      margin-top: 20px;
-      text-align: center;
-    }
-    #image-container img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    #history {
-      margin-top: 30px;
-      width: 100%;
-    }
-    #history h2 {
-      text-align: center;
-    }
-    #history-list {
-      list-style: none;
-      padding: 0;
-    }
-    #history-list li {
-      margin-bottom: 10px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      background-color: #f9f9f9;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    #history-list li img {
-      max-height: 50px;
-      margin-left: 10px;
+    #toolbar button, #toolbar input, #toolbar select {
+      margin-right: 10px;
+      padding: 8px;
+      border: 1px solid #ccc;
       border-radius: 4px;
+    }
+    #canvasContainer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: calc(100vh - 60px); /* Adjust height for toolbar */
+    }
+    #drawingCanvas {
+      border: 1px solid black;
+      cursor: crosshair;
+    }
+    #aiPrompt {
+      flex-grow: 1;
+    }
+    .tool-button.active {
+      background-color: lightblue;
     }
   </style>
 </head>
 <body>
-  <img id="background-image" src="" alt="背景图片">
-  <div class="container">
-    <h1>图片生成器</h1>
-    <input type="text" id="prompt-input" placeholder="输入你的提示语">
-    <button onclick="generateImage()">生成图片</button>
-
-    <div id="image-container">
-      <h2>生成的图片</h2>
-      <img id="generated-image" src="" alt="生成的图片" style="display: none;">
-    </div>
-
-    <div id="history">
-      <h2>生成历史</h2>
-      <ul id="history-list"></ul>
-    </div>
+  <div id="toolbar">
+    <button class="tool-button" data-tool="pen">Pen</button>
+    <button class="tool-button" data-tool="eraser">Eraser</button>
+    <button class="tool-button" data-tool="select">Select</button>
+    <select id="shapeTool">
+      <option value="none">None</option>
+      <option value="line">Line</option>
+      <option value="rect">Rectangle</option>
+      <option value="circle">Circle</option>
+    </select>
+    <input type="color" id="colorPicker" value="#000000">
+    <input type="number" id="penSize" value="5" min="1" max="50">
+    <button id="clearButton">Clear</button>
+    <input type="file" id="imageUpload" accept="image/*">
+    <button id="exportButton">Export</button>
+    <input type="text" id="aiPrompt" placeholder="Enter AI prompt">
+    <button id="generateAiButton">Generate AI Image</button>
+  </div>
+  <div id="canvasContainer">
+    <canvas id="drawingCanvas" width="800" height="600"></canvas>
   </div>
 
   <script>
-    const backgroundImageElement = document.getElementById('background-image');
-    const generatedImageElement = document.getElementById('generated-image');
-    const promptInput = document.getElementById('prompt-input');
-    const historyList = document.getElementById('history-list');
+    const canvas = document.getElementById('drawingCanvas');
+    const ctx = canvas.getContext('2d');
+    const toolbar = document.getElementById('toolbar');
+    const toolButtons = document.querySelectorAll('.tool-button');
+    const shapeToolSelect = document.getElementById('shapeTool');
+    const colorPicker = document.getElementById('colorPicker');
+    const penSizeInput = document.getElementById('penSize');
+    const clearButton = document.getElementById('clearButton');
+    const imageUpload = document.getElementById('imageUpload');
+    const exportButton = document.getElementById('exportButton');
+    const aiPromptInput = document.getElementById('aiPrompt');
+    const generateAiButton = document.getElementById('generateAiButton');
 
-    // 从本地存储加载历史记录
-    let imageHistory = JSON.parse(localStorage.getItem('imageHistory') || '[]');
-    updateHistoryDisplay();
-    generateAndSetBackgroundImage(); // 生成并设置初始背景图片
+    let currentTool = 'pen';
+    let currentColor = colorPicker.value;
+    let currentPenSize = penSizeInput.value;
+    let drawing = false;
+    let startX, startY, endX, endY;
+    let selectedShape = 'none';
+    let selectionRect = null;
+    let backgroundImage = null;
 
-    async function generateImage() {
-      const prompt = promptInput.value;
-      if (!prompt) {
-        alert('请输入提示语');
+    // Initialize active tool button
+    toolButtons.forEach(button => {
+      if (button.dataset.tool === currentTool) {
+        button.classList.add('active');
+      }
+      button.addEventListener('click', () => {
+        toolButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        currentTool = button.dataset.tool;
+        selectedShape = 'none'; // Reset shape tool when switching to pen/eraser/select
+        shapeToolSelect.value = 'none';
+      });
+    });
+
+    shapeToolSelect.addEventListener('change', (e) => {
+      selectedShape = e.target.value;
+      toolButtons.forEach(btn => btn.classList.remove('active')); // Deselect other tools
+      currentTool = 'shape'; // Set current tool to shape
+    });
+
+
+    colorPicker.addEventListener('change', (e) => {
+      currentColor = e.target.value;
+    });
+
+    penSizeInput.addEventListener('change', (e) => {
+      currentPenSize = e.target.value;
+    });
+
+    clearButton.addEventListener('click', () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      backgroundImage = null; // Clear background image as well
+      if (backgroundImage) {
+        drawImage(); // Redraw background image if it exists
+      }
+    });
+
+    imageUpload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          backgroundImage = new Image();
+          backgroundImage.onload = function() {
+            drawImage();
+          }
+          backgroundImage.src = event.target.result;
+        }
+        reader.readAsDataURL(file);
+      }
+    });
+
+    exportButton.addEventListener('click', () => {
+      const imageDataURL = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.href = imageDataURL;
+      downloadLink.download = 'drawing.png';
+      downloadLink.click();
+    });
+
+    generateAiButton.addEventListener('click', generateAiImage);
+
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+    canvas.addEventListener('mousemove', draw);
+
+    function drawImage() {
+      if (backgroundImage) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas before drawing background
+        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+      }
+    }
+
+
+    function startDrawing(e) {
+      drawing = true;
+      startX = e.offsetX;
+      startY = e.offsetY;
+      if (currentTool === 'eraser') {
+        ctx.strokeStyle = 'white'; // Set eraser to white (or canvas background color)
+        ctx.globalCompositeOperation = 'destination-out'; // Use destination-out for erasing
+      } else {
+        ctx.strokeStyle = currentColor;
+        ctx.globalCompositeOperation = 'source-over'; // Default drawing mode
+      }
+      ctx.lineWidth = currentPenSize;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      if (currentTool === 'pen' || currentTool === 'eraser') {
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+      } else if (currentTool === 'select') {
+        selectionRect = {startX: startX, startY: startY, endX: startX, endY: startY};
+      }
+    }
+
+    function draw(e) {
+      if (!drawing) return;
+      endX = e.offsetX;
+      endY = e.offsetY;
+
+      if (currentTool === 'pen' || currentTool === 'eraser') {
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+      } else if (currentTool === 'select') {
+        drawImage(); // Redraw background if exists and clear any previous selection box
+        if (backgroundImage) {
+          ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+        }
+        drawSelectionBox(startX, startY, endX, endY);
+      } else if (currentTool === 'shape') {
+          drawImage(); // Redraw background and clear any previous shape
+          if (backgroundImage) {
+              ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+          }
+          drawShapePreview(startX, startY, endX, endY, selectedShape);
+      }
+    }
+
+    function stopDrawing() {
+      drawing = false;
+      if (currentTool === 'shape' && selectedShape !== 'none') {
+        drawShape(startX, startY, endX, endY, selectedShape);
+      }
+    }
+
+    function drawSelectionBox(x1, y1, x2, y2) {
+      ctx.strokeStyle = 'blue';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.rect(x1, y1, x2 - x1, y2 - y1);
+      ctx.stroke();
+    }
+
+    function drawShapePreview(x1, y1, x2, y2, shapeType) {
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = currentPenSize;
+      ctx.beginPath();
+      switch (shapeType) {
+        case 'line':
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          break;
+        case 'rect':
+          ctx.rect(x1, y1, x2 - x1, y2 - y1);
+          break;
+        case 'circle':
+          const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)) / 2;
+          const centerX = (x1 + x2) / 2;
+          const centerY = (y1 + y2) / 2;
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          break;
+      }
+      ctx.stroke();
+    }
+
+    function drawShape(x1, y1, x2, y2, shapeType) {
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = currentPenSize;
+      ctx.fillStyle = 'transparent'; // No fill for now, can add fill color option later
+      ctx.beginPath();
+      switch (shapeType) {
+        case 'line':
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          break;
+        case 'rect':
+          ctx.rect(x1, y1, x2 - x1, y2 - y1);
+          break;
+        case 'circle':
+          const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)) / 2;
+          const centerX = (x1 + x2) / 2;
+          const centerY = (y1 + y2) / 2;
+          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+          break;
+      }
+      ctx.stroke();
+      ctx.fill();
+    }
+
+
+    async function generateAiImage() {
+      const promptText = aiPromptInput.value;
+      if (!promptText) {
+        alert('Please enter a prompt for AI image generation.');
         return;
       }
 
-      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true`;
+      const apiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true`;
 
       try {
-        generatedImageElement.src = imageUrl;
-        generatedImageElement.style.display = 'block';
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const blob = await response.blob();
+        const imageUrl = URL.createObjectURL(blob);
 
-        // 添加到历史记录并保存到本地存储
-        const historyItem = { prompt: prompt, imageUrl: imageUrl, timestamp: new Date().toISOString() };
-        imageHistory.unshift(historyItem); // 添加到数组开头
-        localStorage.setItem('imageHistory', JSON.stringify(imageHistory));
-        updateHistoryDisplay();
-        generateAndSetBackgroundImage(); // 每次生成新图片后更新背景
+        backgroundImage = new Image();
+        backgroundImage.onload = function() {
+          drawImage();
+        }
+        backgroundImage.src = imageUrl;
+
       } catch (error) {
-        console.error('生成图片时出错:', error);
-        alert('生成图片时出错，请重试');
+        console.error('Error fetching AI image:', error);
+        alert('Failed to generate AI image. Please check console for details.');
       }
     }
 
-    function updateHistoryDisplay() {
-      historyList.innerHTML = ''; // 清空历史列表
-      imageHistory.forEach(item => {
-        const listItem = document.createElement('li');
-        listItem.innerHTML = `
-          <span>${item.prompt}</span>
-          <img src="${item.imageUrl}" alt="${item.prompt}">
-        `;
-        historyList.appendChild(listItem);
-      });
-    }
-
-    async function generateAndSetBackgroundImage() {
-        const backgroundPrompt = "没有水印的背景图片"; // 可以自定义背景提示语
-        const backgroundImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(backgroundPrompt)}?nologo=true`;
-        backgroundImageElement.src = backgroundImageUrl;
-    }
 
   </script>
 </body>
