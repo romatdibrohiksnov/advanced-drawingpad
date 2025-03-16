@@ -129,7 +129,7 @@
             </div>
 
             <div class="tool-group" id="brush-types">
-                <button class="tool-btn" data-brush="pencil">铅笔</button>
+                <button class="tool-btn active" data-brush="pencil">铅笔</button>
                 <button class="tool-btn" data-brush="airbrush">喷枪</button>
                 <button class="tool-btn" data-brush="marker">马克笔</button>
             </div>
@@ -192,10 +192,12 @@
                 this.history = [];
                 this.historyIndex = -1;
                 this.currentTool = 'brush';
+                this.brushType = 'pencil';
                 this.brushSize = 5;
                 this.primaryColor = '#ff0000';
                 this.secondaryColor = '#0000ff';
                 this.isDrawing = false;
+                this.points = [];
                 this.viewTransform = {
                     scale: 1,
                     offsetX: 0,
@@ -226,39 +228,41 @@
             }
 
             setupEventListeners() {
-                // 鼠标事件
-                this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
-                this.canvas.addEventListener('mousemove', this.draw.bind(this));
-                this.canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
-                this.canvas.addEventListener('mouseout', this.stopDrawing.bind(this));
-
-                // 触摸事件
-                this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
-                this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
-                this.canvas.addEventListener('touchend', this.stopDrawing.bind(this));
-
-                // 画布变换
-                this.canvas.addEventListener('wheel', this.handleZoom.bind(this));
-                this.canvas.addEventListener('dblclick', this.resetView.bind(this));
-                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-                // 工具选择
                 document.querySelectorAll('[data-tool]').forEach(btn => {
                     btn.addEventListener('click', () => this.selectTool(btn.dataset.tool));
                 });
 
-                // 颜色选择
+                document.querySelectorAll('[data-brush]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.brushType = btn.dataset.brush;
+                        document.querySelectorAll('[data-brush]').forEach(b => 
+                            b.classList.toggle('active', b === btn)
+                        );
+                    });
+                });
+
                 document.getElementById('primary-color').addEventListener('input', (e) => {
                     this.primaryColor = e.target.value;
                 });
 
-                // 笔刷大小
                 document.getElementById('brush-size').addEventListener('input', (e) => {
                     this.brushSize = parseInt(e.target.value);
                     document.getElementById('brush-size-value').textContent = this.brushSize;
                 });
 
-                // 其他UI事件
+                this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
+                this.canvas.addEventListener('mousemove', this.draw.bind(this));
+                this.canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
+                this.canvas.addEventListener('mouseout', this.stopDrawing.bind(this));
+
+                this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
+                this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
+                this.canvas.addEventListener('touchend', this.stopDrawing.bind(this));
+
+                this.canvas.addEventListener('wheel', this.handleZoom.bind(this));
+                this.canvas.addEventListener('dblclick', this.resetView.bind(this));
+                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
                 document.getElementById('new-layer-btn').addEventListener('click', () => this.addLayer());
                 document.getElementById('undo-btn').addEventListener('click', () => this.undo());
                 document.getElementById('redo-btn').addEventListener('click', () => this.redo());
@@ -276,6 +280,9 @@
 
             startDrawing(e) {
                 const pos = this.getCanvasPosition(e);
+                this.points = [pos];
+                this.isDrawing = true;
+                
                 const layer = this.layers[this.currentLayerIndex];
                 const ctx = layer.canvas.getContext('2d');
                 
@@ -283,62 +290,84 @@
                 ctx.lineWidth = this.brushSize;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
-                ctx.globalCompositeOperation = this.currentTool === 'eraser' 
-                    ? 'destination-out' 
-                    : 'source-over';
+                ctx.globalAlpha = 1;
+
+                switch(this.brushType) {
+                    case 'airbrush':
+                        ctx.globalAlpha = 0.5;
+                        ctx.lineWidth *= 1.5;
+                        ctx.shadowColor = this.primaryColor;
+                        ctx.shadowBlur = this.brushSize * 0.8;
+                        break;
+                    case 'marker':
+                        ctx.globalAlpha = 0.8;
+                        ctx.lineCap = 'square';
+                        ctx.shadowColor = this.primaryColor;
+                        ctx.shadowBlur = this.brushSize * 0.3;
+                        break;
+                    default:
+                        ctx.globalAlpha = 1;
+                        ctx.lineWidth = Math.max(1, this.brushSize * 0.8);
+                        ctx.shadowBlur = 0;
+                }
+
+                if(this.currentTool === 'eraser') {
+                    ctx.globalCompositeOperation = 'destination-out';
+                    ctx.strokeStyle = 'rgba(0,0,0,1)';
+                } else {
+                    ctx.globalCompositeOperation = 'source-over';
+                }
 
                 ctx.beginPath();
                 ctx.moveTo(pos.x, pos.y);
-                this.isDrawing = true;
-                this.lastX = pos.x;
-                this.lastY = pos.y;
             }
 
             draw(e) {
                 if (!this.isDrawing) return;
                 const pos = this.getCanvasPosition(e);
+                this.points.push(pos);
+
                 const layer = this.layers[this.currentLayerIndex];
                 const ctx = layer.canvas.getContext('2d');
 
                 ctx.beginPath();
-                ctx.moveTo(this.lastX, this.lastY);
-                ctx.quadraticCurveTo(
-                    this.lastX,
-                    this.lastY,
-                    (pos.x + this.lastX) / 2,
-                    (pos.y + this.lastY) / 2
-                );
+                ctx.moveTo(this.points[0].x, this.points[0].y);
+                
+                for(let i = 1; i < this.points.length; i++) {
+                    const prev = this.points[i-1];
+                    const curr = this.points[i];
+                    const midPoint = {
+                        x: (prev.x + curr.x) / 2,
+                        y: (prev.y + curr.y) / 2
+                    };
+                    
+                    ctx.quadraticCurveTo(
+                        prev.x,
+                        prev.y,
+                        midPoint.x,
+                        midPoint.y
+                    );
+                }
                 ctx.stroke();
 
-                this.lastX = pos.x;
-                this.lastY = pos.y;
+                this.points = [this.points[this.points.length - 1]];
                 this.renderLayers();
             }
 
             stopDrawing() {
                 this.isDrawing = false;
+                this.points = [];
                 this.saveState();
-            }
-
-            handleTouchStart(e) {
-                e.preventDefault();
-                if (e.touches.length > 0) {
-                    this.startDrawing(e.touches[0]);
-                }
-            }
-
-            handleTouchMove(e) {
-                e.preventDefault();
-                if (e.touches.length > 0) {
-                    this.draw(e.touches[0]);
-                }
             }
 
             getCanvasPosition(e) {
                 const rect = this.canvas.getBoundingClientRect();
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                const scale = this.viewTransform.scale;
                 return {
-                    x: (e.clientX - rect.left - this.viewTransform.offsetX) / this.viewTransform.scale,
-                    y: (e.clientY - rect.top - this.viewTransform.offsetY) / this.viewTransform.scale
+                    x: (clientX - rect.left - this.viewTransform.offsetX) / scale,
+                    y: (clientY - rect.top - this.viewTransform.offsetY) / scale
                 };
             }
 
@@ -437,18 +466,29 @@
                 };
                 reader.readAsDataURL(file);
             }
+
+            handleTouchStart(e) {
+                e.preventDefault();
+                if (e.touches.length > 0) {
+                    this.startDrawing(e.touches[0]);
+                }
+            }
+
+            handleTouchMove(e) {
+                e.preventDefault();
+                if (e.touches.length > 0) {
+                    this.draw(e.touches[0]);
+                }
+            }
         }
 
-        // 初始化系统
         const drawingApp = new DrawingSystem();
 
-        // 帮助面板控制
         function toggleHelp() {
             const panel = document.getElementById('help-panel');
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         }
 
-        // 快捷键支持
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
@@ -459,7 +499,6 @@
             }
         });
 
-        // 画布平移控制
         let isPanning = false;
         document.addEventListener('mousedown', (e) => {
             if (e.button === 2) {
