@@ -16,12 +16,14 @@
             position: fixed;
             top: 10px;
             right: 10px;
+            white-space: pre-line;
         }
         .info {
             position: fixed;
             bottom: 10px;
             left: 10px;
             color: #888;
+            white-space: pre-line;
         }
     </style>
 </head>
@@ -43,6 +45,7 @@ const Game = {
         gold: 100
     },
     currentEnemy: null,
+    inShop: false,
     map: [],
     messages: [],
 
@@ -72,34 +75,33 @@ const Game = {
     placeRandom(char) {
         for (let i = 0; i < 5; i++) {
             let x, y;
+            let attempts = 0;
             do {
                 x = Math.floor(Math.random() * this.mapSize);
                 y = Math.floor(Math.random() * this.mapSize);
+                attempts++;
+                if (attempts > 100) break;
             } while (this.map[y][x] !== '.');
-            this.map[y][x] = char;
+            if (this.map[y][x] === '.') {
+                this.map[y][x] = char;
+            }
         }
     },
 
     updateStatus() {
         const status = document.getElementById('status');
-        status.innerHTML = `HP: ${this.player.hp}/${this.player.maxHp}
-
-                           攻击: ${this.player.atk}
-
-                           防御: ${this.player.def}
-
-                           金币: ${this.player.gold}`;
+        status.innerHTML = `HP: ${this.player.hp}/${this.player.maxHp}\n攻击: ${this.player.atk}\n防御: ${this.player.def}\n金币: ${this.player.gold}`;
     },
 
     addMessage(msg) {
         this.messages.push(msg);
         if (this.messages.length > 5) this.messages.shift();
-        document.getElementById('info').innerHTML = this.messages.join('
-');
+        document.getElementById('info').innerHTML = this.messages.join('\n');
     },
 
     handleInput(e) {
         if (this.currentEnemy) return this.handleCombat(e);
+        if (this.inShop) return;
         
         const key = e.key;
         let dx = 0, dy = 0;
@@ -121,22 +123,25 @@ const Game = {
             newY >= 0 && newY < this.mapSize) {
             
             const cell = this.map[newY][newX];
-            this.handleCellEvent(cell, newX, newY);
-            
             if (cell !== '#') {
-                this.map[this.player.y][this.player.x] = '.';
-                this.player.x = newX;
-                this.player.y = newY;
-                this.map[newY][newX] = '@';
+                const allowMove = this.handleCellEvent(cell, newX, newY);
+                if (allowMove) {
+                    this.map[this.player.y][this.player.x] = '.';
+                    this.player.x = newX;
+                    this.player.y = newY;
+                    this.map[newY][newX] = '@';
+                }
             }
         }
         this.render();
     },
 
     handleCellEvent(cell, x, y) {
+        let allowMove = true;
         switch(cell) {
             case 'M':
                 this.startCombat(x, y);
+                allowMove = false;
                 break;
             case '$':
                 this.showShop();
@@ -147,10 +152,13 @@ const Game = {
                 this.addMessage("你找到了治疗药水！恢复30HP");
                 break;
         }
+        return allowMove;
     },
 
     startCombat(x, y) {
         this.currentEnemy = {
+            x: x,
+            y: y,
             hp: 50 + Math.floor(Math.random() * 50),
             atk: 15 + Math.floor(Math.random() * 10),
             def: 3 + Math.floor(Math.random() * 5)
@@ -159,14 +167,14 @@ const Game = {
     },
 
     handleCombat(e) {
-        if (e.key === '1') this.playerAttack();
-        else if (e.key === '2' && this.player.gold >= 50) {
+        if (e.key === '1') {
+            this.playerAttack();
+        } else if (e.key === '2' && this.player.gold >= 50) {
             this.player.hp += 50;
             this.player.gold -= 50;
             this.addMessage("使用金币治疗！恢复50HP");
+            this.enemyAttack();
         }
-        this.enemyAttack();
-        this.checkCombatEnd();
         this.updateStatus();
     },
 
@@ -174,18 +182,22 @@ const Game = {
         const damage = Math.max(0, this.player.atk - this.currentEnemy.def);
         this.currentEnemy.hp -= damage;
         this.addMessage(`你造成 ${damage} 点伤害`);
+        this.checkCombatEnd();
+        if (this.currentEnemy) this.enemyAttack();
     },
 
     enemyAttack() {
         const damage = Math.max(0, this.currentEnemy.atk - this.player.def);
         this.player.hp -= damage;
         this.addMessage(`怪物造成 ${damage} 点伤害`);
+        this.checkCombatEnd();
     },
 
     checkCombatEnd() {
-        if (this.currentEnemy.hp <= 0) {
+        if (this.currentEnemy && this.currentEnemy.hp <= 0) {
             this.addMessage("你击败了怪物！获得50金币");
             this.player.gold += 50;
+            this.map[this.currentEnemy.y][this.currentEnemy.x] = '.';
             this.currentEnemy = null;
         }
         if (this.player.hp <= 0) {
@@ -195,20 +207,30 @@ const Game = {
     },
 
     showShop() {
+        this.inShop = true;
         this.addMessage("商店: 1. 生命药水(50金) 2. 强化攻击(100金)");
-        document.addEventListener('keydown', function shopListener(e) {
-            if (e.key === '1' && this.player.gold >= 50) {
-                this.player.maxHp += 20;
-                this.player.gold -= 50;
-                this.addMessage("购买生命药水！最大HP+20");
+        const shopListener = (e) => {
+            if (e.key === '1') {
+                if (this.player.gold >= 50) {
+                    this.player.maxHp += 20;
+                    this.player.gold -= 50;
+                    this.addMessage("购买生命药水！最大HP+20");
+                    this.updateStatus();
+                }
+                this.inShop = false;
+                document.removeEventListener('keydown', shopListener);
+            } else if (e.key === '2') {
+                if (this.player.gold >= 100) {
+                    this.player.atk += 10;
+                    this.player.gold -= 100;
+                    this.addMessage("强化攻击！攻击+10");
+                    this.updateStatus();
+                }
+                this.inShop = false;
+                document.removeEventListener('keydown', shopListener);
             }
-            else if (e.key === '2' && this.player.gold >= 100) {
-                this.player.atk += 10;
-                this.player.gold -= 100;
-                this.addMessage("强化攻击！攻击+10");
-            }
-            document.removeEventListener('keydown', shopListener);
-        }.bind(this));
+        };
+        document.addEventListener('keydown', shopListener);
     },
 
     render() {
