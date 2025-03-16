@@ -192,7 +192,6 @@
                 this.history = [];
                 this.historyIndex = -1;
                 this.currentTool = 'brush';
-                this.brushType = 'pencil';
                 this.brushSize = 5;
                 this.primaryColor = '#ff0000';
                 this.secondaryColor = '#0000ff';
@@ -240,11 +239,23 @@
 
                 // 画布变换
                 this.canvas.addEventListener('wheel', this.handleZoom.bind(this));
+                this.canvas.addEventListener('dblclick', this.resetView.bind(this));
                 this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
                 // 工具选择
                 document.querySelectorAll('[data-tool]').forEach(btn => {
                     btn.addEventListener('click', () => this.selectTool(btn.dataset.tool));
+                });
+
+                // 颜色选择
+                document.getElementById('primary-color').addEventListener('input', (e) => {
+                    this.primaryColor = e.target.value;
+                });
+
+                // 笔刷大小
+                document.getElementById('brush-size').addEventListener('input', (e) => {
+                    this.brushSize = parseInt(e.target.value);
+                    document.getElementById('brush-size-value').textContent = this.brushSize;
                 });
 
                 // 其他UI事件
@@ -256,22 +267,51 @@
                 document.getElementById('file-input').addEventListener('change', (e) => this.loadImage(e.target.files[0]));
             }
 
-            // 核心绘图功能
+            selectTool(tool) {
+                this.currentTool = tool;
+                document.querySelectorAll('[data-tool]').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.tool === tool);
+                });
+            }
+
             startDrawing(e) {
-                this.isDrawing = true;
                 const pos = this.getCanvasPosition(e);
-                this.ctx.beginPath();
-                this.ctx.moveTo(pos.x, pos.y);
+                const layer = this.layers[this.currentLayerIndex];
+                const ctx = layer.canvas.getContext('2d');
+                
+                ctx.strokeStyle = this.primaryColor;
+                ctx.lineWidth = this.brushSize;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                ctx.globalCompositeOperation = this.currentTool === 'eraser' 
+                    ? 'destination-out' 
+                    : 'source-over';
+
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                this.isDrawing = true;
+                this.lastX = pos.x;
+                this.lastY = pos.y;
             }
 
             draw(e) {
                 if (!this.isDrawing) return;
                 const pos = this.getCanvasPosition(e);
-                
-                this.ctx.lineTo(pos.x, pos.y);
-                this.ctx.stroke();
-                
-                // 实时渲染
+                const layer = this.layers[this.currentLayerIndex];
+                const ctx = layer.canvas.getContext('2d');
+
+                ctx.beginPath();
+                ctx.moveTo(this.lastX, this.lastY);
+                ctx.quadraticCurveTo(
+                    this.lastX,
+                    this.lastY,
+                    (pos.x + this.lastX) / 2,
+                    (pos.y + this.lastY) / 2
+                );
+                ctx.stroke();
+
+                this.lastX = pos.x;
+                this.lastY = pos.y;
                 this.renderLayers();
             }
 
@@ -280,7 +320,20 @@
                 this.saveState();
             }
 
-            // 画布变换处理
+            handleTouchStart(e) {
+                e.preventDefault();
+                if (e.touches.length > 0) {
+                    this.startDrawing(e.touches[0]);
+                }
+            }
+
+            handleTouchMove(e) {
+                e.preventDefault();
+                if (e.touches.length > 0) {
+                    this.draw(e.touches[0]);
+                }
+            }
+
             getCanvasPosition(e) {
                 const rect = this.canvas.getBoundingClientRect();
                 return {
@@ -294,6 +347,19 @@
                 const delta = e.deltaY > 0 ? 0.9 : 1.1;
                 this.viewTransform.scale *= delta;
                 this.applyTransform();
+                this.renderLayers();
+            }
+
+            resetView() {
+                this.viewTransform = {
+                    scale: 1,
+                    offsetX: 0,
+                    offsetY: 0,
+                    lastX: 0,
+                    lastY: 0
+                };
+                this.applyTransform();
+                this.renderLayers();
             }
 
             applyTransform() {
@@ -304,7 +370,6 @@
                 );
             }
 
-            // 历史记录管理
             saveState() {
                 this.history = this.history.slice(0, this.historyIndex + 1);
                 this.history.push(this.canvas.toDataURL());
@@ -328,13 +393,12 @@
             restoreState() {
                 const img = new Image();
                 img.src = this.history[this.historyIndex];
-                img.onload(() => {
+                img.onload = () => {
                     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                     this.ctx.drawImage(img, 0, 0);
-                });
+                };
             }
 
-            // 其他功能方法
             addLayer() {
                 this.layers.push(this.createLayer());
                 this.currentLayerIndex = this.layers.length - 1;
@@ -352,13 +416,6 @@
                 });
             }
 
-            updateBrush() {
-                this.ctx.strokeStyle = this.primaryColor;
-                this.ctx.lineWidth = this.brushSize;
-                this.ctx.lineCap = 'round';
-                this.ctx.lineJoin = 'round';
-            }
-
             saveImage() {
                 const link = document.createElement('a');
                 link.download = 'drawing.png';
@@ -372,7 +429,9 @@
                     const img = new Image();
                     img.src = e.target.result;
                     img.onload = () => {
-                        this.ctx.drawImage(img, 0, 0);
+                        const layer = this.layers[this.currentLayerIndex];
+                        layer.canvas.getContext('2d').drawImage(img, 0, 0);
+                        this.renderLayers();
                         this.saveState();
                     };
                 };
@@ -391,11 +450,38 @@
 
         // 快捷键支持
         document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey) {
-                if (e.key === 'z') drawingApp.undo();
-                if (e.key === 'y') drawingApp.redo();
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+                switch (e.key.toLowerCase()) {
+                    case 'z': drawingApp.undo(); break;
+                    case 'y': drawingApp.redo(); break;
+                }
             }
         });
+
+        // 画布平移控制
+        let isPanning = false;
+        document.addEventListener('mousedown', (e) => {
+            if (e.button === 2) {
+                isPanning = true;
+                drawingApp.viewTransform.lastX = e.clientX;
+                drawingApp.viewTransform.lastY = e.clientY;
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                const dx = e.clientX - drawingApp.viewTransform.lastX;
+                const dy = e.clientY - drawingApp.viewTransform.lastY;
+                drawingApp.viewTransform.offsetX += dx;
+                drawingApp.viewTransform.offsetY += dy;
+                drawingApp.viewTransform.lastX = e.clientX;
+                drawingApp.viewTransform.lastY = e.clientY;
+                drawingApp.renderLayers();
+            }
+        });
+
+        document.addEventListener('mouseup', () => isPanning = false);
     </script>
 </body>
 </html>
