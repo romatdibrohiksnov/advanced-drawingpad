@@ -1,121 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Blog</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-            color: #333;
-            background-image: url('https://image.pollinations.ai/prompt/ai%20generated%20background%20beautiful%20blog');
-            background-size: cover;
-            background-blend-mode: overlay;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            padding-bottom: 50px;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片生成器</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      transition: background-image 0.5s ease-in-out;
+      background-size: cover;
+      background-position: center;
+    }
 
-        .container {
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 40px;
-            margin-top: 50px;
-            border-radius: 15px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-            text-align: center;
-            max-width: 800px;
-            width: 95%;
-        }
+    #image-container {
+      margin-top: 20px;
+      max-width: 80%;
+      width: auto;
+      height: auto;
+    }
 
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-        }
+    #prompt-input {
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      margin-right: 10px;
+    }
 
-        #image-container {
-            margin-bottom: 20px;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            max-width: 500px;
-            margin-left: auto;
-            margin-right: auto;
-        }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
 
-        #ai-image {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        input[type="text"] {
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            width: calc(100% - 26px);
-            margin-bottom: 15px;
-            font-size: 16px;
-        }
-
-        button {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 8px;
-            background-color: #5cb85c;
-            color: white;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.3s ease;
-        }
-
-        button:hover {
-            background-color: #4cae4c;
-        }
-
-        .blog-content {
-            text-align: left;
-            padding: 20px;
-            border-top: 1px solid #eee;
-            margin-top: 20px;
-        }
-
-        .blog-content h2 {
-            color: #333;
-        }
-
-        .blog-content p {
-            color: #555;
-            line-height: 1.6;
-        }
-    </style>
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Welcome to the AI Blog</h1>
-        <div id="image-container">
-            <img id="ai-image" src="https://image.pollinations.ai/prompt/beautiful%20landscape" alt="AI Generated Image">
-        </div>
-        <input type="text" id="prompt-input" placeholder="Enter prompt to change image">
-        <button onclick="generateImage()">Generate Image</button>
+  <h1>无水印图片生成器</h1>
+  <div>
+    <input type="text" id="prompt-input" placeholder="输入你的提示词">
+    <button onclick="generateImage()">生成图片</button>
+  </div>
+  <img id="generated-image" src="" alt="生成的图片" style="max-width: 512px; max-height: 512px; margin-top: 20px;">
 
-        <div class="blog-content">
-            <h2>Latest AI Trends</h2>
-            <p>Artificial intelligence is rapidly transforming various industries, from healthcare to finance. Stay updated with the latest breakthroughs and discussions in the AI world. This blog will explore the impact of AI on society, ethical considerations, and future possibilities.</p>
-            <p>Explore articles on neural networks, machine learning, deep learning, and more. Understand how AI is being used to solve complex problems and create innovative solutions.</p>
-        </div>
-    </div>
+  <script>
+    async function generateImage() {
+      const prompt = document.getElementById('prompt-input').value;
+      if (!prompt) {
+        alert('请输入提示词');
+        return;
+      }
 
-    <script>
-        function generateImage() {
-            const prompt = document.getElementById('prompt-input').value;
-            const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
-            document.getElementById('ai-image').src = imageUrl;
-        }
-    </script>
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true`;
+
+      document.body.style.backgroundImage = `url('${imageUrl}')`;
+
+      const generatedImage = document.getElementById('generated-image');
+      generatedImage.src = imageUrl;
+    }
+  </script>
 </body>
 </html>
