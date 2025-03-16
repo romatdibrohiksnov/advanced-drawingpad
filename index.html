@@ -1,76 +1,152 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>图片生成器</title>
+  <title>无水印图片生成器</title>
   <style>
     body {
-      margin: 0;
       font-family: sans-serif;
+      margin: 0;
+      overflow: hidden; /* Prevent scrollbars when background image is used */
+    }
+    #background-image {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* Cover the entire background */
+      z-index: -1; /* Place behind content */
+    }
+    .container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      transition: background-image 0.5s ease-in-out;
-      background-size: cover;
-      background-position: center;
+      padding: 20px;
+      background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background for content */
+      border-radius: 10px;
+      margin: 20px auto;
+      max-width: 800px;
     }
-
-    #image-container {
-      margin-top: 20px;
-      max-width: 80%;
-      width: auto;
-      height: auto;
-    }
-
-    #prompt-input {
+    input[type="text"] {
       padding: 10px;
-      font-size: 16px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      margin-right: 10px;
+      margin-bottom: 10px;
+      width: 100%;
+      box-sizing: border-box;
     }
-
     button {
       padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      border-radius: 5px;
-      background-color: #007bff;
-      color: white;
       cursor: pointer;
     }
-
-    button:hover {
-      background-color: #0056b3;
+    #image-container {
+      margin-top: 20px;
+      text-align: center;
+    }
+    #image-container img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    #history {
+      margin-top: 30px;
+      width: 100%;
+    }
+    #history h2 {
+      text-align: center;
+    }
+    #history-list {
+      list-style: none;
+      padding: 0;
+    }
+    #history-list li {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #history-list li img {
+      max-height: 50px;
+      margin-left: 10px;
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
-  <h1>无水印图片生成器</h1>
-  <div>
-    <input type="text" id="prompt-input" placeholder="输入你的提示词">
+  <img id="background-image" src="" alt="背景图片">
+  <div class="container">
+    <h1>无水印图片生成器</h1>
+    <input type="text" id="prompt-input" placeholder="输入你的提示语">
     <button onclick="generateImage()">生成图片</button>
+
+    <div id="image-container">
+      <h2>生成的图片</h2>
+      <img id="generated-image" src="" alt="生成的图片" style="display: none;">
+    </div>
+
+    <div id="history">
+      <h2>生成历史</h2>
+      <ul id="history-list"></ul>
+    </div>
   </div>
-  <img id="generated-image" src="" alt="生成的图片" style="max-width: 512px; max-height: 512px; margin-top: 20px;">
 
   <script>
+    const backgroundImageElement = document.getElementById('background-image');
+    const generatedImageElement = document.getElementById('generated-image');
+    const promptInput = document.getElementById('prompt-input');
+    const historyList = document.getElementById('history-list');
+
+    // 从本地存储加载历史记录
+    let imageHistory = JSON.parse(localStorage.getItem('imageHistory') || '[]');
+    updateHistoryDisplay();
+    generateAndSetBackgroundImage(); // 生成并设置初始背景图片
+
     async function generateImage() {
-      const prompt = document.getElementById('prompt-input').value;
+      const prompt = promptInput.value;
       if (!prompt) {
-        alert('请输入提示词');
+        alert('请输入提示语');
         return;
       }
 
       const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true`;
 
-      document.body.style.backgroundImage = `url('${imageUrl}')`;
+      try {
+        generatedImageElement.src = imageUrl;
+        generatedImageElement.style.display = 'block';
 
-      const generatedImage = document.getElementById('generated-image');
-      generatedImage.src = imageUrl;
+        // 添加到历史记录并保存到本地存储
+        const historyItem = { prompt: prompt, imageUrl: imageUrl, timestamp: new Date().toISOString() };
+        imageHistory.unshift(historyItem); // 添加到数组开头
+        localStorage.setItem('imageHistory', JSON.stringify(imageHistory));
+        updateHistoryDisplay();
+        generateAndSetBackgroundImage(); // 每次生成新图片后更新背景
+      } catch (error) {
+        console.error('生成图片时出错:', error);
+        alert('生成图片时出错，请重试');
+      }
     }
+
+    function updateHistoryDisplay() {
+      historyList.innerHTML = ''; // 清空历史列表
+      imageHistory.forEach(item => {
+        const listItem = document.createElement('li');
+        listItem.innerHTML = `
+          <span>${item.prompt}</span>
+          <img src="${item.imageUrl}" alt="${item.prompt}">
+        `;
+        historyList.appendChild(listItem);
+      });
+    }
+
+    async function generateAndSetBackgroundImage() {
+        const backgroundPrompt = "没有水印的背景图片"; // 可以自定义背景提示语
+        const backgroundImageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(backgroundPrompt)}?nologo=true`;
+        backgroundImageElement.src = backgroundImageUrl;
+    }
+
   </script>
 </body>
 </html>
