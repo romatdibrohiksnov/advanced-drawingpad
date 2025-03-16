@@ -5,36 +5,181 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>高级绘画系统</title>
     <style>
-        /* 保持原有样式不变 */
-        :root { --primary-color: #2196F3; --secondary-color: #FF9800; }
-        body { margin: 0; padding: 20px; background: #f5f5f5; font-family: 'Segoe UI', sans-serif; touch-action: none; overflow: hidden; }
-        #main-container { display: flex; gap: 15px; height: 90vh; }
-        #toolbar { width: 220px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); overflow-y: auto; }
-        .tool-group { margin-bottom: 15px; padding: 10px; border: 1px solid #eee; border-radius: 8px; }
-        .tool-btn { display: block; width: 100%; padding: 8px; margin: 5px 0; border: none; border-radius: 5px; background: #f8f8f8; cursor: pointer; transition: all 0.2s; }
-        .tool-btn.active { background: var(--primary-color); color: white; }
-        canvas { background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); touch-action: none; }
-        #layer-panel { width: 200px; background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .layer-item { display: flex; align-items: center; padding: 8px; margin: 5px 0; background: #f8f8f8; border-radius: 5px; }
-        #help-panel { position: fixed; top: 20px; left: 20px; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1000; max-width: 300px; display: none; }
-        .color-swatch { width: 30px; height: 30px; border-radius: 50%; margin: 5px; cursor: pointer; border: 2px solid transparent; }
-        .color-swatch.active { border-color: #333; }
-        @media (max-width: 768px) { #main-container { flex-direction: column; height: auto; } #toolbar, #layer-panel { width: auto; } }
+        :root {
+            --primary-color: #2196F3;
+            --secondary-color: #FF9800;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            font-family: 'Segoe UI', sans-serif;
+            touch-action: none;
+            overflow: hidden;
+        }
+
+        #main-container {
+            display: flex;
+            gap: 15px;
+            height: 90vh;
+        }
+
+        #toolbar {
+            width: 220px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+
+        .tool-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+
+        .tool-btn {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 5px;
+            background: #f8f8f8;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tool-btn.active {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        canvas {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            touch-action: none;
+        }
+
+        #layer-panel {
+            width: 200px;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f8f8;
+            border-radius: 5px;
+        }
+
+        #help-panel {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.95);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 300px;
+            display: none;
+        }
+
+        .color-swatch {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin: 5px;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .color-swatch.active {
+            border-color: #333;
+        }
+
+        @media (max-width: 768px) {
+            #main-container {
+                flex-direction: column;
+                height: auto;
+            }
+            #toolbar, #layer-panel {
+                width: auto;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- 保持原有HTML结构不变 -->
     <div id="main-container">
         <div id="toolbar">
-            <!-- 工具按钮保持不变 -->
+            <div class="tool-group">
+                <button class="tool-btn active" data-tool="brush">画笔</button>
+                <button class="tool-btn" data-tool="eraser">橡皮擦</button>
+                <button class="tool-btn" data-tool="shape">形状</button>
+            </div>
+
+            <div class="tool-group" id="brush-types">
+                <button class="tool-btn" data-brush="pencil">铅笔</button>
+                <button class="tool-btn" data-brush="airbrush">喷枪</button>
+                <button class="tool-btn" data-brush="marker">马克笔</button>
+            </div>
+
+            <div class="tool-group">
+                <input type="color" id="primary-color" value="#ff0000">
+                <input type="color" id="secondary-color" value="#0000ff">
+                <div id="color-palette">
+                    <div class="color-swatch" style="background:#ff0000"></div>
+                    <div class="color-swatch" style="background:#00ff00"></div>
+                    <div class="color-swatch" style="background:#0000ff"></div>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <label>笔刷大小: <span id="brush-size-value">5</span>px</label>
+                <input type="range" id="brush-size" min="1" max="50" value="5">
+            </div>
+
+            <div class="tool-group">
+                <button id="undo-btn">撤销 (Ctrl+Z)</button>
+                <button id="redo-btn">重做 (Ctrl+Y)</button>
+            </div>
+
+            <div class="tool-group">
+                <button id="save-btn">保存为图片</button>
+                <button id="load-btn">加载图片</button>
+                <input type="file" id="file-input" hidden>
+            </div>
         </div>
+
         <canvas id="main-canvas" width="800" height="600"></canvas>
+
         <div id="layer-panel">
-            <!-- 图层面板保持不变 -->
+            <h3>图层</h3>
+            <div id="layers-list"></div>
+            <button id="new-layer-btn">新建图层</button>
         </div>
     </div>
+
     <div id="help-panel">
-        <!-- 帮助面板保持不变 -->
+        <h3>帮助说明</h3>
+        <ul>
+            <li>鼠标滚轮缩放画布</li>
+            <li>右键拖动平移画布</li>
+            <li>双击重置视图</li>
+            <li>Ctrl+Z/Y 撤销重做</li>
+            <li>长按颜色取样</li>
+        </ul>
+        <button onclick="toggleHelp()">关闭</button>
     </div>
 
     <script>
@@ -59,139 +204,180 @@
                     lastX: 0,
                     lastY: 0
                 };
-                
-                // 修复1：立即初始化
                 this.init();
             }
 
             createLayer() {
                 const layer = {
                     canvas: document.createElement('canvas'),
-                    ctx: null,
                     visible: true,
                     opacity: 1,
                     blendMode: 'source-over'
                 };
                 layer.canvas.width = this.canvas.width;
                 layer.canvas.height = this.canvas.height;
-                layer.ctx = layer.canvas.getContext('2d');
                 return layer;
             }
 
             init() {
-                // 修复2：正确绑定事件监听
                 this.setupEventListeners();
                 this.updateBrush();
+                this.renderLayers();
                 this.saveState();
             }
 
             setupEventListeners() {
-                // 修复3：使用箭头函数保持this指向
-                this.canvas.addEventListener('mousedown', e => this.startDrawing(e));
-                this.canvas.addEventListener('mousemove', e => this.draw(e));
-                this.canvas.addEventListener('mouseup', () => this.stopDrawing());
-                this.canvas.addEventListener('mouseout', () => this.stopDrawing());
+                // 鼠标事件
+                this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
+                this.canvas.addEventListener('mousemove', this.draw.bind(this));
+                this.canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
+                this.canvas.addEventListener('mouseout', this.stopDrawing.bind(this));
 
-                this.canvas.addEventListener('touchstart', e => this.handleTouchStart(e), { passive: false });
-                this.canvas.addEventListener('touchmove', e => this.handleTouchMove(e), { passive: false });
-                this.canvas.addEventListener('touchend', () => this.stopDrawing());
+                // 触摸事件
+                this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
+                this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
+                this.canvas.addEventListener('touchend', this.stopDrawing.bind(this));
 
-                this.canvas.addEventListener('wheel', e => this.handleZoom(e));
-                this.canvas.addEventListener('contextmenu', e => e.preventDefault());
+                // 画布变换
+                this.canvas.addEventListener('wheel', this.handleZoom.bind(this));
+                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-                // 修复4：正确绑定工具按钮事件
+                // 工具选择
                 document.querySelectorAll('[data-tool]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        this.selectTool(btn.dataset.tool);
-                        document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('active'));
-                        btn.classList.add('active');
-                    });
+                    btn.addEventListener('click', () => this.selectTool(btn.dataset.tool));
                 });
 
-                // 修复5：绑定其他控件事件
+                // 其他UI事件
                 document.getElementById('new-layer-btn').addEventListener('click', () => this.addLayer());
                 document.getElementById('undo-btn').addEventListener('click', () => this.undo());
                 document.getElementById('redo-btn').addEventListener('click', () => this.redo());
                 document.getElementById('save-btn').addEventListener('click', () => this.saveImage());
                 document.getElementById('load-btn').addEventListener('click', () => document.getElementById('file-input').click());
-                document.getElementById('file-input').addEventListener('change', e => this.loadImage(e.target.files[0]));
-                
-                // 修复6：颜色选择器事件
-                document.getElementById('primary-color').addEventListener('input', e => {
-                    this.primaryColor = e.target.value;
-                    this.updateBrush();
-                });
-                
-                // 修复7：笔刷大小控制
-                document.getElementById('brush-size').addEventListener('input', e => {
-                    this.brushSize = e.target.value;
-                    document.getElementById('brush-size-value').textContent = this.brushSize;
-                    this.updateBrush();
-                });
+                document.getElementById('file-input').addEventListener('change', (e) => this.loadImage(e.target.files[0]));
             }
 
-            // 修复8：正确的绘图逻辑
+            // 核心绘图功能
             startDrawing(e) {
                 this.isDrawing = true;
                 const pos = this.getCanvasPosition(e);
-                const currentLayer = this.layers[this.currentLayerIndex];
-                
-                currentLayer.ctx.beginPath();
-                currentLayer.ctx.moveTo(pos.x, pos.y);
-                
-                // 开始新的路径
-                currentLayer.ctx.beginPath();
-                currentLayer.ctx.moveTo(pos.x, pos.y);
+                this.ctx.beginPath();
+                this.ctx.moveTo(pos.x, pos.y);
             }
 
             draw(e) {
                 if (!this.isDrawing) return;
                 const pos = this.getCanvasPosition(e);
-                const currentLayer = this.layers[this.currentLayerIndex];
-
-                currentLayer.ctx.lineTo(pos.x, pos.y);
-                currentLayer.ctx.stroke();
                 
-                // 立即更新显示
+                this.ctx.lineTo(pos.x, pos.y);
+                this.ctx.stroke();
+                
+                // 实时渲染
                 this.renderLayers();
             }
 
-            // 修复9：正确的坐标转换
+            stopDrawing() {
+                this.isDrawing = false;
+                this.saveState();
+            }
+
+            // 画布变换处理
             getCanvasPosition(e) {
                 const rect = this.canvas.getBoundingClientRect();
-                const clientX = e.clientX || e.touches?.[0]?.clientX;
-                const clientY = e.clientY || e.touches?.[0]?.clientY;
-                
                 return {
-                    x: (clientX - rect.left - this.viewTransform.offsetX) / this.viewTransform.scale,
-                    y: (clientY - rect.top - this.viewTransform.offsetY) / this.viewTransform.scale
+                    x: (e.clientX - rect.left - this.viewTransform.offsetX) / this.viewTransform.scale,
+                    y: (e.clientY - rect.top - this.viewTransform.offsetY) / this.viewTransform.scale
                 };
             }
 
-            // 修复10：正确的图层渲染
+            handleZoom(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                this.viewTransform.scale *= delta;
+                this.applyTransform();
+            }
+
+            applyTransform() {
+                this.ctx.setTransform(
+                    this.viewTransform.scale, 0,
+                    0, this.viewTransform.scale,
+                    this.viewTransform.offsetX, this.viewTransform.offsetY
+                );
+            }
+
+            // 历史记录管理
+            saveState() {
+                this.history = this.history.slice(0, this.historyIndex + 1);
+                this.history.push(this.canvas.toDataURL());
+                this.historyIndex++;
+            }
+
+            undo() {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.restoreState();
+                }
+            }
+
+            redo() {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
+                    this.restoreState();
+                }
+            }
+
+            restoreState() {
+                const img = new Image();
+                img.src = this.history[this.historyIndex];
+                img.onload(() => {
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.ctx.drawImage(img, 0, 0);
+                });
+            }
+
+            // 其他功能方法
+            addLayer() {
+                this.layers.push(this.createLayer());
+                this.currentLayerIndex = this.layers.length - 1;
+                this.renderLayers();
+            }
+
             renderLayers() {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.layers.forEach(layer => {
                     if (layer.visible) {
-                        this.ctx.save();
                         this.ctx.globalAlpha = layer.opacity;
                         this.ctx.globalCompositeOperation = layer.blendMode;
                         this.ctx.drawImage(layer.canvas, 0, 0);
-                        this.ctx.restore();
                     }
                 });
             }
 
-            // 修复11：更新笔刷设置
             updateBrush() {
-                const currentLayer = this.layers[this.currentLayerIndex];
-                currentLayer.ctx.strokeStyle = this.primaryColor;
-                currentLayer.ctx.lineWidth = this.brushSize;
-                currentLayer.ctx.lineCap = 'round';
-                currentLayer.ctx.lineJoin = 'round';
+                this.ctx.strokeStyle = this.primaryColor;
+                this.ctx.lineWidth = this.brushSize;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
             }
 
-            // 其他方法保持不变...
+            saveImage() {
+                const link = document.createElement('a');
+                link.download = 'drawing.png';
+                link.href = this.canvas.toDataURL();
+                link.click();
+            }
+
+            loadImage(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = () => {
+                        this.ctx.drawImage(img, 0, 0);
+                        this.saveState();
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
         }
 
         // 初始化系统
@@ -203,10 +389,9 @@
             panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
         }
 
-        // 修复12：添加快捷键支持
+        // 快捷键支持
         document.addEventListener('keydown', (e) => {
             if (e.ctrlKey) {
-                e.preventDefault();
                 if (e.key === 'z') drawingApp.undo();
                 if (e.key === 'y') drawingApp.redo();
             }
