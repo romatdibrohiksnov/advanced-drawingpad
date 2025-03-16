@@ -2,35 +2,61 @@
 <html>
 <head>
   <title>Collaborative Drawing Pad with AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { margin: 0; }
     #toolbar {
       display: flex;
+      flex-wrap: wrap; /* Allow toolbar to wrap on smaller screens */
       justify-content: flex-start;
       padding: 10px;
       background-color: #f0f0f0;
     }
     #toolbar button, #toolbar input, #toolbar select {
       margin-right: 10px;
+      margin-bottom: 5px; /* Add some bottom margin for wrapped items */
       padding: 8px;
       border: 1px solid #ccc;
       border-radius: 4px;
+      box-sizing: border-box; /* Include padding and border in element's total width and height */
     }
     #canvasContainer {
       display: flex;
       justify-content: center;
       align-items: center;
       height: calc(100vh - 60px); /* Adjust height for toolbar */
+      overflow: hidden; /* Prevent scrollbars */
     }
     #drawingCanvas {
       border: 1px solid black;
       cursor: crosshair;
+      max-width: 100%; /* Make canvas responsive within its container */
+      max-height: 100%; /* Make canvas responsive within its container */
+      height: auto;    /* Adjust height automatically based on width */
+      width: auto;     /* Adjust width automatically based on height */
     }
     #aiPrompt {
       flex-grow: 1;
+      min-width: 150px; /* Minimum width for prompt input */
     }
     .tool-button.active {
       background-color: lightblue;
+    }
+
+    /* Media query for smaller screens */
+    @media (max-width: 600px) {
+      #toolbar {
+        flex-direction: column; /* Stack toolbar items vertically on small screens */
+        align-items: stretch; /* Make toolbar items full width */
+      }
+      #toolbar button, #toolbar input, #toolbar select {
+        margin-right: 0; /* Remove right margin in vertical layout */
+        margin-bottom: 5px;
+        width: 100%; /* Full width for toolbar items */
+      }
+      #canvasContainer {
+        height: calc(100vh - 150px); /* Adjust canvas height when toolbar is stacked */
+      }
     }
   </style>
 </head>
@@ -50,7 +76,7 @@
     <button id="clearButton">Clear</button>
     <input type="file" id="imageUpload" accept="image/*">
     <button id="exportButton">Export</button>
-    <input type="text" id="aiPrompt" placeholder="Enter AI prompt">
+    <input type="text" id="aiPrompt" placeholder="Enter AI prompt" id="aiPrompt">
     <button id="generateAiButton">Generate AI Image</button>
   </div>
   <div id="canvasContainer">
