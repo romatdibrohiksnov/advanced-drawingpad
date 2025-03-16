@@ -269,7 +269,7 @@
         return;
       }
 
-      const apiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?nologo=true`;
+      const apiUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(promptText)}?nologo=true`;
 
       try {
         const response = await fetch(apiUrl);
