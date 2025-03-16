@@ -1,526 +1,121 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>高级绘画系统</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Blog</title>
     <style>
-        :root {
-            --primary-color: #2196F3;
-            --secondary-color: #FF9800;
-        }
-
         body {
+            font-family: 'Arial', sans-serif;
             margin: 0;
-            padding: 20px;
-            background: #f5f5f5;
-            font-family: 'Segoe UI', sans-serif;
-            touch-action: none;
-            overflow: hidden;
-        }
-
-        #main-container {
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            background-image: url('https://image.pollinations.ai/prompt/ai%20generated%20background%20beautiful%20blog');
+            background-size: cover;
+            background-blend-mode: overlay;
             display: flex;
-            gap: 15px;
-            height: 90vh;
-        }
-
-        #toolbar {
-            width: 220px;
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            overflow-y: auto;
-        }
-
-        .tool-group {
-            margin-bottom: 15px;
-            padding: 10px;
-            border: 1px solid #eee;
-            border-radius: 8px;
-        }
-
-        .tool-btn {
-            display: block;
-            width: 100%;
-            padding: 8px;
-            margin: 5px 0;
-            border: none;
-            border-radius: 5px;
-            background: #f8f8f8;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .tool-btn.active {
-            background: var(--primary-color);
-            color: white;
-        }
-
-        canvas {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            touch-action: none;
-        }
-
-        #layer-panel {
-            width: 200px;
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .layer-item {
-            display: flex;
+            flex-direction: column;
             align-items: center;
-            padding: 8px;
-            margin: 5px 0;
-            background: #f8f8f8;
-            border-radius: 5px;
+            min-height: 100vh;
+            padding-bottom: 50px;
         }
 
-        #help-panel {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(255,255,255,0.95);
-            padding: 20px;
+        .container {
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 40px;
+            margin-top: 50px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 800px;
+            width: 95%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        #image-container {
+            margin-bottom: 20px;
             border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-            max-width: 300px;
-            display: none;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
-        .color-swatch {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            margin: 5px;
+        #ai-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        input[type="text"] {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            width: calc(100% - 26px);
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            background-color: #5cb85c;
+            color: white;
             cursor: pointer;
-            border: 2px solid transparent;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
         }
 
-        .color-swatch.active {
-            border-color: #333;
+        button:hover {
+            background-color: #4cae4c;
         }
 
-        @media (max-width: 768px) {
-            #main-container {
-                flex-direction: column;
-                height: auto;
-            }
-            #toolbar, #layer-panel {
-                width: auto;
-            }
+        .blog-content {
+            text-align: left;
+            padding: 20px;
+            border-top: 1px solid #eee;
+            margin-top: 20px;
+        }
+
+        .blog-content h2 {
+            color: #333;
+        }
+
+        .blog-content p {
+            color: #555;
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
-    <div id="main-container">
-        <div id="toolbar">
-            <div class="tool-group">
-                <button class="tool-btn active" data-tool="brush">画笔</button>
-                <button class="tool-btn" data-tool="eraser">橡皮擦</button>
-                <button class="tool-btn" data-tool="shape">形状</button>
-            </div>
-
-            <div class="tool-group" id="brush-types">
-                <button class="tool-btn active" data-brush="pencil">铅笔</button>
-                <button class="tool-btn" data-brush="airbrush">喷枪</button>
-                <button class="tool-btn" data-brush="marker">马克笔</button>
-            </div>
-
-            <div class="tool-group">
-                <input type="color" id="primary-color" value="#ff0000">
-                <input type="color" id="secondary-color" value="#0000ff">
-                <div id="color-palette">
-                    <div class="color-swatch" style="background:#ff0000"></div>
-                    <div class="color-swatch" style="background:#00ff00"></div>
-                    <div class="color-swatch" style="background:#0000ff"></div>
-                </div>
-            </div>
-
-            <div class="tool-group">
-                <label>笔刷大小: <span id="brush-size-value">5</span>px</label>
-                <input type="range" id="brush-size" min="1" max="50" value="5">
-            </div>
-
-            <div class="tool-group">
-                <button id="undo-btn">撤销 (Ctrl+Z)</button>
-                <button id="redo-btn">重做 (Ctrl+Y)</button>
-            </div>
-
-            <div class="tool-group">
-                <button id="save-btn">保存为图片</button>
-                <button id="load-btn">加载图片</button>
-                <input type="file" id="file-input" hidden>
-            </div>
+    <div class="container">
+        <h1>Welcome to the AI Blog</h1>
+        <div id="image-container">
+            <img id="ai-image" src="https://image.pollinations.ai/prompt/beautiful%20landscape" alt="AI Generated Image">
         </div>
+        <input type="text" id="prompt-input" placeholder="Enter prompt to change image">
+        <button onclick="generateImage()">Generate Image</button>
 
-        <canvas id="main-canvas" width="800" height="600"></canvas>
-
-        <div id="layer-panel">
-            <h3>图层</h3>
-            <div id="layers-list"></div>
-            <button id="new-layer-btn">新建图层</button>
+        <div class="blog-content">
+            <h2>Latest AI Trends</h2>
+            <p>Artificial intelligence is rapidly transforming various industries, from healthcare to finance. Stay updated with the latest breakthroughs and discussions in the AI world. This blog will explore the impact of AI on society, ethical considerations, and future possibilities.</p>
+            <p>Explore articles on neural networks, machine learning, deep learning, and more. Understand how AI is being used to solve complex problems and create innovative solutions.</p>
         </div>
-    </div>
-
-    <div id="help-panel">
-        <h3>帮助说明</h3>
-        <ul>
-            <li>鼠标滚轮缩放画布</li>
-            <li>右键拖动平移画布</li>
-            <li>双击重置视图</li>
-            <li>Ctrl+Z/Y 撤销重做</li>
-            <li>长按颜色取样</li>
-        </ul>
-        <button onclick="toggleHelp()">关闭</button>
     </div>
 
     <script>
-        class DrawingSystem {
-            constructor() {
-                this.canvas = document.getElementById('main-canvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.layers = [this.createLayer()];
-                this.currentLayerIndex = 0;
-                this.history = [];
-                this.historyIndex = -1;
-                this.currentTool = 'brush';
-                this.brushType = 'pencil';
-                this.brushSize = 5;
-                this.primaryColor = '#ff0000';
-                this.secondaryColor = '#0000ff';
-                this.isDrawing = false;
-                this.points = [];
-                this.viewTransform = {
-                    scale: 1,
-                    offsetX: 0,
-                    offsetY: 0,
-                    lastX: 0,
-                    lastY: 0
-                };
-                this.init();
-            }
-
-            createLayer() {
-                const layer = {
-                    canvas: document.createElement('canvas'),
-                    visible: true,
-                    opacity: 1,
-                    blendMode: 'source-over'
-                };
-                layer.canvas.width = this.canvas.width;
-                layer.canvas.height = this.canvas.height;
-                return layer;
-            }
-
-            init() {
-                this.setupEventListeners();
-                this.updateBrush();
-                this.renderLayers();
-                this.saveState();
-            }
-
-            setupEventListeners() {
-                document.querySelectorAll('[data-tool]').forEach(btn => {
-                    btn.addEventListener('click', () => this.selectTool(btn.dataset.tool));
-                });
-
-                document.querySelectorAll('[data-brush]').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        this.brushType = btn.dataset.brush;
-                        document.querySelectorAll('[data-brush]').forEach(b => 
-                            b.classList.toggle('active', b === btn)
-                        );
-                    });
-                });
-
-                document.getElementById('primary-color').addEventListener('input', (e) => {
-                    this.primaryColor = e.target.value;
-                });
-
-                document.getElementById('brush-size').addEventListener('input', (e) => {
-                    this.brushSize = parseInt(e.target.value);
-                    document.getElementById('brush-size-value').textContent = this.brushSize;
-                });
-
-                this.canvas.addEventListener('mousedown', this.startDrawing.bind(this));
-                this.canvas.addEventListener('mousemove', this.draw.bind(this));
-                this.canvas.addEventListener('mouseup', this.stopDrawing.bind(this));
-                this.canvas.addEventListener('mouseout', this.stopDrawing.bind(this));
-
-                this.canvas.addEventListener('touchstart', this.handleTouchStart.bind(this));
-                this.canvas.addEventListener('touchmove', this.handleTouchMove.bind(this));
-                this.canvas.addEventListener('touchend', this.stopDrawing.bind(this));
-
-                this.canvas.addEventListener('wheel', this.handleZoom.bind(this));
-                this.canvas.addEventListener('dblclick', this.resetView.bind(this));
-                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-                document.getElementById('new-layer-btn').addEventListener('click', () => this.addLayer());
-                document.getElementById('undo-btn').addEventListener('click', () => this.undo());
-                document.getElementById('redo-btn').addEventListener('click', () => this.redo());
-                document.getElementById('save-btn').addEventListener('click', () => this.saveImage());
-                document.getElementById('load-btn').addEventListener('click', () => document.getElementById('file-input').click());
-                document.getElementById('file-input').addEventListener('change', (e) => this.loadImage(e.target.files[0]));
-            }
-
-            selectTool(tool) {
-                this.currentTool = tool;
-                document.querySelectorAll('[data-tool]').forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.tool === tool);
-                });
-            }
-
-            startDrawing(e) {
-                const pos = this.getCanvasPosition(e);
-                this.points = [pos];
-                this.isDrawing = true;
-                
-                const layer = this.layers[this.currentLayerIndex];
-                const ctx = layer.canvas.getContext('2d');
-                
-                ctx.strokeStyle = this.primaryColor;
-                ctx.lineWidth = this.brushSize;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.globalAlpha = 1;
-
-                switch(this.brushType) {
-                    case 'airbrush':
-                        ctx.globalAlpha = 0.5;
-                        ctx.lineWidth *= 1.5;
-                        ctx.shadowColor = this.primaryColor;
-                        ctx.shadowBlur = this.brushSize * 0.8;
-                        break;
-                    case 'marker':
-                        ctx.globalAlpha = 0.8;
-                        ctx.lineCap = 'square';
-                        ctx.shadowColor = this.primaryColor;
-                        ctx.shadowBlur = this.brushSize * 0.3;
-                        break;
-                    default:
-                        ctx.globalAlpha = 1;
-                        ctx.lineWidth = Math.max(1, this.brushSize * 0.8);
-                        ctx.shadowBlur = 0;
-                }
-
-                if(this.currentTool === 'eraser') {
-                    ctx.globalCompositeOperation = 'destination-out';
-                    ctx.strokeStyle = 'rgba(0,0,0,1)';
-                } else {
-                    ctx.globalCompositeOperation = 'source-over';
-                }
-
-                ctx.beginPath();
-                ctx.moveTo(pos.x, pos.y);
-            }
-
-            draw(e) {
-                if (!this.isDrawing) return;
-                const pos = this.getCanvasPosition(e);
-                this.points.push(pos);
-
-                const layer = this.layers[this.currentLayerIndex];
-                const ctx = layer.canvas.getContext('2d');
-
-                ctx.beginPath();
-                ctx.moveTo(this.points[0].x, this.points[0].y);
-                
-                for(let i = 1; i < this.points.length; i++) {
-                    const prev = this.points[i-1];
-                    const curr = this.points[i];
-                    const midPoint = {
-                        x: (prev.x + curr.x) / 2,
-                        y: (prev.y + curr.y) / 2
-                    };
-                    
-                    ctx.quadraticCurveTo(
-                        prev.x,
-                        prev.y,
-                        midPoint.x,
-                        midPoint.y
-                    );
-                }
-                ctx.stroke();
-
-                this.points = [this.points[this.points.length - 1]];
-                this.renderLayers();
-            }
-
-            stopDrawing() {
-                this.isDrawing = false;
-                this.points = [];
-                this.saveState();
-            }
-
-            getCanvasPosition(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const clientX = e.clientX || e.touches[0].clientX;
-                const clientY = e.clientY || e.touches[0].clientY;
-                const scale = this.viewTransform.scale;
-                return {
-                    x: (clientX - rect.left - this.viewTransform.offsetX) / scale,
-                    y: (clientY - rect.top - this.viewTransform.offsetY) / scale
-                };
-            }
-
-            handleZoom(e) {
-                e.preventDefault();
-                const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                this.viewTransform.scale *= delta;
-                this.applyTransform();
-                this.renderLayers();
-            }
-
-            resetView() {
-                this.viewTransform = {
-                    scale: 1,
-                    offsetX: 0,
-                    offsetY: 0,
-                    lastX: 0,
-                    lastY: 0
-                };
-                this.applyTransform();
-                this.renderLayers();
-            }
-
-            applyTransform() {
-                this.ctx.setTransform(
-                    this.viewTransform.scale, 0,
-                    0, this.viewTransform.scale,
-                    this.viewTransform.offsetX, this.viewTransform.offsetY
-                );
-            }
-
-            saveState() {
-                this.history = this.history.slice(0, this.historyIndex + 1);
-                this.history.push(this.canvas.toDataURL());
-                this.historyIndex++;
-            }
-
-            undo() {
-                if (this.historyIndex > 0) {
-                    this.historyIndex--;
-                    this.restoreState();
-                }
-            }
-
-            redo() {
-                if (this.historyIndex < this.history.length - 1) {
-                    this.historyIndex++;
-                    this.restoreState();
-                }
-            }
-
-            restoreState() {
-                const img = new Image();
-                img.src = this.history[this.historyIndex];
-                img.onload = () => {
-                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                    this.ctx.drawImage(img, 0, 0);
-                };
-            }
-
-            addLayer() {
-                this.layers.push(this.createLayer());
-                this.currentLayerIndex = this.layers.length - 1;
-                this.renderLayers();
-            }
-
-            renderLayers() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.layers.forEach(layer => {
-                    if (layer.visible) {
-                        this.ctx.globalAlpha = layer.opacity;
-                        this.ctx.globalCompositeOperation = layer.blendMode;
-                        this.ctx.drawImage(layer.canvas, 0, 0);
-                    }
-                });
-            }
-
-            saveImage() {
-                const link = document.createElement('a');
-                link.download = 'drawing.png';
-                link.href = this.canvas.toDataURL();
-                link.click();
-            }
-
-            loadImage(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.src = e.target.result;
-                    img.onload = () => {
-                        const layer = this.layers[this.currentLayerIndex];
-                        layer.canvas.getContext('2d').drawImage(img, 0, 0);
-                        this.renderLayers();
-                        this.saveState();
-                    };
-                };
-                reader.readAsDataURL(file);
-            }
-
-            handleTouchStart(e) {
-                e.preventDefault();
-                if (e.touches.length > 0) {
-                    this.startDrawing(e.touches[0]);
-                }
-            }
-
-            handleTouchMove(e) {
-                e.preventDefault();
-                if (e.touches.length > 0) {
-                    this.draw(e.touches[0]);
-                }
-            }
+        function generateImage() {
+            const prompt = document.getElementById('prompt-input').value;
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}`;
+            document.getElementById('ai-image').src = imageUrl;
         }
-
-        const drawingApp = new DrawingSystem();
-
-        function toggleHelp() {
-            const panel = document.getElementById('help-panel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-        }
-
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
-                switch (e.key.toLowerCase()) {
-                    case 'z': drawingApp.undo(); break;
-                    case 'y': drawingApp.redo(); break;
-                }
-            }
-        });
-
-        let isPanning = false;
-        document.addEventListener('mousedown', (e) => {
-            if (e.button === 2) {
-                isPanning = true;
-                drawingApp.viewTransform.lastX = e.clientX;
-                drawingApp.viewTransform.lastY = e.clientY;
-            }
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (isPanning) {
-                const dx = e.clientX - drawingApp.viewTransform.lastX;
-                const dy = e.clientY - drawingApp.viewTransform.lastY;
-                drawingApp.viewTransform.offsetX += dx;
-                drawingApp.viewTransform.offsetY += dy;
-                drawingApp.viewTransform.lastX = e.clientX;
-                drawingApp.viewTransform.lastY = e.clientY;
-                drawingApp.renderLayers();
-            }
-        });
-
-        document.addEventListener('mouseup', () => isPanning = false);
     </script>
 </body>
 </html>
